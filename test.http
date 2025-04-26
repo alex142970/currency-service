@@ -1,0 +1,17 @@
+###
+GET http://localhost:3000/currency/rate-history?dateFrom=2025-04-25&dateTo=2025-04-25
+###
+GET http://localhost:3000/currency/rate?date=2025-04-25
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJsb2dpbiI6InVzZXIxIiwiZXhwIjoxNzQ1NjY0MzY3fQ.CWI5PNDnITTdaEBHkHdUtOy-INF0j5PILoneZZ8hnEI
+###
+GET http://localhost:8082/generate?login=test
+###
+GET http://localhost:8082/validate?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJsb2dpbiI6InRlc3QiLCJleHAiOjE3NDU2NjI4MTR9.8nSBMoCimnElSIP_0n_JjzFItwdTOJ539yRh5NZ6tXA
+###
+POST http://localhost:3000/auth/login
+Content-Type: application/json
+
+{
+  "login": "user1",
+  "password": "password"
+}

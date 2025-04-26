@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package currency;
+
+option go_package = "com.currency";
+
+message ExchangeRateRequest  {
+  string date = 1;
+}
+
+message ExchangeRateResponse  {
+  float rate = 1;
+}
+
+message ExchangeRateHistoryRequest  {
+  string date_from = 1;
+  string date_to = 2;
+}
+
+message ExchangeRateHistoryResponse  {
+  repeated float rate = 1;
+}
+
+service Currency {
+  rpc ExchangeRate (ExchangeRateRequest) returns (ExchangeRateResponse) {}
+  rpc ExchangeRateHistory (ExchangeRateHistoryRequest) returns (ExchangeRateHistoryResponse) {}
+}
+
