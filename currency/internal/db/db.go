@@ -3,15 +3,16 @@ package db
 import (
 	"currency_service/currency/internal/config"
 	"database/sql"
+	"fmt"
 	_ "github.com/lib/pq"
 )
 
-func Connect(c *config.DatabaseConfig) *sql.DB {
+func NewDatabaseConnection(c *config.DatabaseConfig) (*sql.DB, error) {
 	db, err := sql.Open("postgres", c.GetDSN())
 
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	return db
+	return db, nil
 }

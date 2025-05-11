@@ -1,7 +1,8 @@
 package main
 
 import (
-	application "currency_service/currency/internal/app"
+	"currency_service/currency/internal/config"
+	"errors"
 	"flag"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -11,21 +12,26 @@ import (
 
 var (
 	migrationsPath = flag.String("path", "", "Path to migrations folder")
+	configPath     = flag.String("config", "config.yaml", "Path to config file")
 )
 
 func main() {
-
-	app := application.NewApp()
+	flag.Parse()
 
 	if *migrationsPath == "" {
-		panic("migrations folder not specified.")
+		log.Fatalf("--path is required")
 	}
 
-	m, err := migrate.New("file://"+*migrationsPath, app.Config.Database.GetDSN())
+	conf, err := config.LoadConfig(*configPath)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("failed to load config: %w", err)
 	}
-	if err := m.Up(); err != nil {
-		log.Fatal(err)
+
+	m, err := migrate.New("file://"+*migrationsPath, conf.Database.GetDSN())
+	if err != nil {
+		log.Fatal("failed to connect to database: %w", err)
+	}
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		log.Fatal("failed to run migrations: %w", err)
 	}
 }

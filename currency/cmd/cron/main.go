@@ -1,34 +1,57 @@
 package main
 
 import (
-	application "currency_service/currency/internal/app"
+	"context"
 	"currency_service/currency/internal/clients/currency"
+	"currency_service/currency/internal/config"
+	"currency_service/currency/internal/db"
+	"currency_service/currency/internal/repository"
 	"currency_service/currency/internal/service"
-	"fmt"
+	"flag"
+	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 )
 
+var (
+	configPath = flag.String("config", "config.yaml", "Path to config file")
+)
+
 func main() {
-	app := application.NewApp()
+	flag.Parse()
+
+	conf, err := config.LoadConfig(*configPath)
+
+	if err != nil {
+		log.Fatal("Error loading config: %w", err)
+	}
 
 	client := currency_client.NewCurrencyClient(&http.Client{
 		Timeout: time.Second * 5,
 	})
 
-	rate, err := client.FetchRate(app.Config.Currency.Base, app.Config.Currency.Target)
+	rate, err := client.FetchRate(conf.Currency.Base, conf.Currency.Target)
 	if err != nil {
-		panic(err)
+		log.Fatal("Error fetching rate: %w", err)
 	}
 
-	s := service.NewCurrencyService(app)
+	connection, err := db.NewDatabaseConnection(&conf.Database)
+
+	repo := repository.NewCurrencyPostgresRepository(connection)
+
+	logger := slog.NewLogLogger(slog.NewJSONHandler(os.Stdout, nil), slog.LevelDebug)
+
+	s := service.NewCurrencyService(repo, conf, logger)
 
 	timeValue, _ := time.Parse("2006-01-02", rate.Date)
 
-	err = s.AddRate(rate.Rate, timeValue)
-	if err != nil {
-		panic(err)
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
 
-	fmt.Println("Success")
+	err = s.AddRate(ctx, rate.Rate, timeValue)
+	if err != nil {
+		log.Fatal("Error adding rate: %w", err)
+	}
 }

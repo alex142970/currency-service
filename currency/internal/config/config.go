@@ -28,10 +28,9 @@ func (cfg *DatabaseConfig) GetDSN() string {
 	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Database)
 }
 
-func MustLoad(configPath string) *Config {
-
+func LoadConfig(configPath string) (*Config, error) {
 	if configPath == "" {
-		panic("config file path not specified.")
+		return nil, fmt.Errorf("must provide config path")
 	}
 
 	var cfg Config
@@ -39,8 +38,8 @@ func MustLoad(configPath string) *Config {
 	err := cleanenv.ReadConfig(configPath, &cfg)
 
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return &cfg
+	return &cfg, nil
 }
