@@ -1,64 +1,114 @@
 package auth
 
 import (
-	"io/ioutil"
+	"context"
+	"currency_service/gateway/internal/config"
+	"fmt"
+	"io"
+	"log"
 	"net/http"
+	"net/url"
 )
 
-type TokensClient struct {
+const (
+	endpointGenerate = "/generate"
+	endpointValidate = "/validate"
+	endpointPing     = "/ping"
+)
+
+type Client struct {
+	baseURL    *url.URL
 	httpClient *http.Client
 }
 
-func NewTokensClient(httpClient *http.Client) *TokensClient {
-	return &TokensClient{
-		httpClient: httpClient,
-	}
-}
-
-func (c *TokensClient) Generate(login string) (string, error) {
-	req, err := http.NewRequest(http.MethodGet, "http://localhost:8082/generate?login="+login, nil)
+func NewAuthClient(conf *config.Config) (*Client, error) {
+	parsedURL, err := url.Parse(conf.AuthURL)
 
 	if err != nil {
-		return "", err
+		return nil, fmt.Errorf("error parsing auth url: %w", err)
+	}
+
+	return &Client{
+		baseURL: parsedURL,
+		httpClient: &http.Client{
+			Transport:     nil,
+			CheckRedirect: nil,
+			Jar:           nil,
+			Timeout:       0,
+		},
+	}, nil
+}
+
+func (c *Client) resolveUrl(endpoint string) *url.URL {
+	return c.baseURL.ResolveReference(&url.URL{Path: endpoint})
+}
+
+func (c *Client) GenerateToken(ctx context.Context, login string) (string, error) {
+
+	requestURL := c.resolveUrl(endpointGenerate)
+
+	query := requestURL.Query()
+	query.Set("login", login)
+	requestURL.RawQuery = query.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL.String(), nil)
+
+	if err != nil {
+		return "", fmt.Errorf("error creating request: %w", err)
 	}
 
 	resp, err := c.httpClient.Do(req)
 
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error executing request: %w", err)
 	}
 
-	if resp.Body != nil {
-		defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("error closing response body: %v", err)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("error executing request, status code: %d", resp.StatusCode)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error reading response body: %w", err)
 	}
 
-	return string(body), nil
+	return string(bodyBytes), nil
 }
 
-func (c *TokensClient) Validate(token string) bool {
-	req, err := http.NewRequest(http.MethodGet, "http://localhost:8082/validate", nil)
+func (c *Client) ValidateToken(ctx context.Context, token string) error {
+
+	requestURL := c.resolveUrl(endpointValidate)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL.String(), nil)
+
+	if err != nil {
+		return fmt.Errorf("error creating request: %w", err)
+	}
 
 	req.Header.Add("Authorization", "Bearer "+token)
 
-	if err != nil {
-		return false
-	}
-
 	resp, err := c.httpClient.Do(req)
 
 	if err != nil {
-		return false
+		return fmt.Errorf("error executing request: %w", err)
 	}
 
-	if resp.StatusCode != 200 {
-		return false
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("error closing response body: %v", err)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("error executing request, status code: %d", resp.StatusCode)
 	}
 
-	return true
+	return nil
 }

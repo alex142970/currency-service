@@ -1,17 +1,18 @@
 package config
 
 import (
+	"fmt"
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
 type Config struct {
-	Env string `yaml:"env"`
+	AuthURL string `yaml:"auth_url"`
 }
 
-func MustLoad(configPath string) *Config {
+func LoadConfig(configPath string) (*Config, error) {
 
 	if configPath == "" {
-		panic("config file path not specified.")
+		return nil, fmt.Errorf("must provide a config path")
 	}
 
 	var cfg Config
@@ -19,8 +20,8 @@ func MustLoad(configPath string) *Config {
 	err := cleanenv.ReadConfig(configPath, &cfg)
 
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("error reading config: %w", err)
 	}
 
-	return &cfg
+	return &cfg, nil
 }
